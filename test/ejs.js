@@ -6,6 +6,7 @@
 
 var ejs = require('..')
   , fs = require('fs')
+  , deepExtend = require('deep-extend')
   , read = fs.readFileSync
   , assert = require('assert')
   , path = require('path')
@@ -41,6 +42,23 @@ function hook_stdio(stream, callback) {
 function fixture(name) {
   return read('test/fixtures/' + name, 'utf8');
 }
+
+var include = function(opts) {
+  return function(file, data){
+    var templateData = deepExtend((opts || {}), data);
+    templateData.include = include(templateData);
+
+    if (!templateData.filename) throw new Error('`include` requires the \'filename\' option.');
+
+    var includedFile = path.extname(file) === '.ejs' ?  file : file + '.ejs';
+    var includaPath = path.join(path.dirname(templateData.filename), includedFile);
+    var fileContent = read(includaPath, 'utf-8');
+
+    templateData.filename = includaPath;
+
+    return ejs.render(fileContent, templateData, opts);
+  }
+};
 
 /**
  * User fixtures.
@@ -731,7 +749,8 @@ suite('include()', function () {
 suite('preprocessor include', function () {
   test('work', function () {
     var file = 'test/fixtures/include_preprocessor.ejs';
-    assert.equal(ejs.render(fixture('include_preprocessor.ejs'), {pets: users}, {filename: file, delimiter: '@'}),
+    var opts = {filename: file, delimiter: '@'};
+    assert.equal(ejs.render(fixture('include_preprocessor.ejs'), {pets: users, include: include(opts)}, opts),
         fixture('include_preprocessor.html'));
   });
 
@@ -741,7 +760,7 @@ suite('preprocessor include', function () {
 
   test('fails without `filename`', function () {
     try {
-      ejs.render(fixture('include_preprocessor.ejs'), {pets: users}, {delimiter: '@'});
+      ejs.render(fixture('include_preprocessor.ejs'), {pets: users, include: include({delimiter: '@'})}, {delimiter: '@'});
     }
     catch (err) {
       assert.ok(err.message.indexOf('requires the \'filename\' option') > -1);
@@ -752,14 +771,14 @@ suite('preprocessor include', function () {
 
   test('strips BOM', function () {
     assert.equal(
-      ejs.render('<% include fixtures/includes/bom.ejs %>',
-        {}, {filename: path.join(__dirname, 'f.ejs')}),
+      ejs.render('<%- include("fixtures/includes/bom.ejs") %>',
+        {include: include({filename: path.join(__dirname, 'f.ejs')})}, {filename: path.join(__dirname, 'f.ejs')}),
       '<p>This is a file with BOM.</p>\n');
   });
 
   test('work when nested', function () {
     var file = 'test/fixtures/menu_preprocessor.ejs';
-    assert.equal(ejs.render(fixture('menu_preprocessor.ejs'), {pets: users}, {filename: file}),
+    assert.equal(ejs.render(fixture('menu_preprocessor.ejs'), {pets: users, include: include({filename: file})}, {filename: file}),
         fixture('menu_preprocessor.html'));
   });
 

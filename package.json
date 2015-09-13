@@ -19,7 +19,9 @@
   },
   "bugs": "https://github.com/mde/ejs/issues",
   "homepage": "https://github.com/mde/ejs",
-  "dependencies": {},
+  "dependencies": {
+    "deep-extend": "^0.4.0"
+  },
   "devDependencies": {
     "browserify": "^8.0.3",
     "istanbul": "~0.3.5",
